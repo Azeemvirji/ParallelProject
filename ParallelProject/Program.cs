@@ -26,7 +26,7 @@ namespace ParallelProject
         static void Main(string[] args)
         {
             List<name> Names = new List<name>();
-            List<name> NamesCopy = new List<name>();
+            //List<name> NamesCopy = new List<name>();
 
             using (StreamReader sr = new StreamReader("names.txt"))
             {
@@ -34,7 +34,7 @@ namespace ParallelProject
                 {
                     string[] s = sr.ReadLine().Split(' ');
                     Names.Add(new name(s[0], s[1]));
-                    NamesCopy.Add(new name(s[0], s[1]));
+                    //NamesCopy.Add(new name(s[0], s[1]));
                 }
             }
 
@@ -49,31 +49,39 @@ namespace ParallelProject
                 }
             }
 
-            Console.WriteLine("Sorting using merge sort");
+            Console.WriteLine("Sorting using provided solution");
             Stopwatch stopwatch = Stopwatch.StartNew();
-            List<name>newNames = mergeSort(Names);
+            List<name> newNames1 = usingBuiltInSort(Names);
             stopwatch.Stop();
             Console.WriteLine("Code took {0} milliseconds to execute", stopwatch.ElapsedMilliseconds);
 
             Console.WriteLine("\n");
 
-            Console.WriteLine("Sorting using parallel merge sort");
+            Console.WriteLine("Sorting using merge sort - Sequential");
             stopwatch = Stopwatch.StartNew();
-            List<name> newerNames = mergeSortParallel(Names, 0, 500);
+            List<name> newNames = mergeSort(Names);
             stopwatch.Stop();
             Console.WriteLine("Code took {0} milliseconds to execute", stopwatch.ElapsedMilliseconds);
 
             Console.WriteLine("\n");
 
-            Console.WriteLine("Sorting using parallel merge sort");
+            Console.WriteLine("Sorting using parallel merge sort with 10000 as depth. \nTesting how long it takes when we use a different thread for each number after the divide.");
+            stopwatch = Stopwatch.StartNew();
+            List<name> newerNames = mergeSortParallel(Names, 0, 10000);
+            stopwatch.Stop();
+            Console.WriteLine("Code took {0} milliseconds to execute", stopwatch.ElapsedMilliseconds);
+
+            Console.WriteLine("\n");
+
+            Console.WriteLine("Sorting using parallel merge sort with 5 as depth.");
             stopwatch = Stopwatch.StartNew();
             List<name> newerNames1 = mergeSortParallel(Names, 0, 5);
             stopwatch.Stop();
             Console.WriteLine("Code took {0} milliseconds to execute", stopwatch.ElapsedMilliseconds);
 
-            Console.WriteLine("\n");
+            //Console.WriteLine("\n");
 
-            Console.WriteLine("Sorting using quick sort");
+            /*Console.WriteLine("Sorting using quick sort");
             stopwatch = Stopwatch.StartNew();
             Quick_Sort(Names, 0, Names.Count - 1);
             stopwatch.Stop();
@@ -85,19 +93,9 @@ namespace ParallelProject
             stopwatch = Stopwatch.StartNew();
             Quick_SortParallel(NamesCopy, 0, NamesCopy.Count - 1);
             stopwatch.Stop();
-            Console.WriteLine("Code took {0} milliseconds to execute", stopwatch.ElapsedMilliseconds);
+            Console.WriteLine("Code took {0} milliseconds to execute", stopwatch.ElapsedMilliseconds);            
 
-            Console.WriteLine("\n");
-
-            Console.WriteLine("Sorting using provided solution");
-            stopwatch = Stopwatch.StartNew();
-            List<name> newNames1 = usingBuiltInSort(Names);
-            stopwatch.Stop();
-            Console.WriteLine("Code took {0} milliseconds to execute", stopwatch.ElapsedMilliseconds);
-
-            
-
-            /*Console.WriteLine("Sorted List:");
+            Console.WriteLine("Sorted List:");
             for (int i = 0; i < newNames.Count; i++)
             {
                 Console.WriteLine("{0} {1}", newNames[i].lastName, newNames[i].firstName);
@@ -137,57 +135,42 @@ namespace ParallelProject
 
             //calculate midpoint
             int midPoint = Names.Count / 2;
+            //if we have a odd list add 1
+            int secondSize = midPoint + Names.Count % 2;
 
-            //check if number is even
-            if(Names.Count % 2 == 0)
+            /*if (Names.Count % 2 != 0)
             {
-                //recursively call mergesort twice, first with values from 0 to midpoint-1 then from midpoint to last element
-                //then send that to merge and return the sorted list
-                return merge(mergeSort(Names.GetRange(0, midPoint)), mergeSort(Names.GetRange(midPoint, midPoint)));
-            }
-            else
-            {
-                //same thing as when its even except the we get the one extra element from the list at the end
-                return merge(mergeSort(Names.GetRange(0, midPoint)), mergeSort(Names.GetRange(midPoint, midPoint + 1)));
-            }
-            
+                secondSize = midPoint + 1;
+            }*/
+
+            //recursively call mergesort twice, first with values from 0 to midpoint-1 then from midpoint to last element
+            //then send that to merge and return the sorted list
+            return merge(mergeSort(Names.GetRange(0, midPoint)), mergeSort(Names.GetRange(midPoint, secondSize)));
         }
 
         static List<name> mergeSortParallel(List<name> Names, int depth, int minDepth)
         {
             if (Names.Count <= 1) return Names;
 
-            var left = new List<name>();
-            var right = new List<name>();
             var sortedNames = new List<name>();
 
             int midPoint = Names.Count / 2;
+            int secondSize = midPoint + Names.Count % 2;
 
-            for (int i = 0; i < midPoint; i++)
+            if (depth > minDepth)
             {
-                left.Add(Names[i]);
-            }
-
-            for (int i = midPoint; i < Names.Count; i++)
-            {
-                right.Add(Names[i]);
-            }
-
-            if(depth > minDepth)
-            {
-                left = mergeSortParallel(left, depth, minDepth);
-                right = mergeSortParallel(right, depth, minDepth);
-
-                sortedNames = merge(left, right);
+                sortedNames = merge(mergeSortParallel(Names.GetRange(0, midPoint), depth, minDepth), mergeSortParallel(Names.GetRange(midPoint, secondSize), depth, minDepth));
             }
             else
             {
+                List<name> left = Names.GetRange(0, midPoint);
+                List<name> right = Names.GetRange(midPoint, secondSize);
+
                 Parallel.Invoke(() => left = mergeSortParallel(left, depth + 1, minDepth),
                             () => right = mergeSortParallel(right, depth + 1, minDepth));
 
                 Parallel.Invoke(() => sortedNames = merge(left, right));
             }
-
 
             return sortedNames;
         }
@@ -247,7 +230,7 @@ namespace ParallelProject
             return sortedNames;
         }
 
-        static void Quick_SortParallel(List<name> Names, int left, int right)
+        /*static void Quick_SortParallel(List<name> Names, int left, int right)
         {
             if (left < right)
             {
@@ -328,6 +311,6 @@ namespace ParallelProject
                     return right;
                 }
             }
-        }
+        }*/
     }
 }
